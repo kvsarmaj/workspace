@@ -1,0 +1,36 @@
+#include <systemc.h>
+#include <unit.tb.files>
+#include <unit.cpp>
+
+SC_MODULE(sc_unit_tb)
+{
+
+  //----------------------------------
+  //DUT ports to be driven by TB
+  //----------------------------------
+
+  sc_unit U_unit;
+
+  void clock() 
+  {
+
+  }
+
+  void stim()
+  {
+
+  }
+
+  SC_CTOR(sc_unit_tb): U_unit("U_unit")
+  {
+    SC_THREAD(clock);
+    SC_THREAD(stim);
+
+    //----------------------------------
+    //Connect tb signals to DUT
+    //----------------------------------
+
+  }
+
+};
+

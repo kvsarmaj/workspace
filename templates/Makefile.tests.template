@@ -1,0 +1,1 @@
+SC_TESTS_FILES = $(PROJ_SC_HOME)/include/unit_tests.cpp

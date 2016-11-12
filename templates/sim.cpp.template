@@ -1,0 +1,22 @@
+#include <systemc.h>
+#include <unit_tb.cpp>
+
+int sc_main(int argc, char* argv[])
+{
+    sc_set_time_resolution(1, SC_PS); //set resolution
+    sc_time t1(1, SC_PS);             //set time step
+
+    //--------------------------------------
+    //instantiate tb top instance
+    //--------------------------------------    
+
+    sc_trace_file *wf;                                       //trace file
+    wf = sc_create_vcd_trace_file("sim");                    //sim.vcd is the name of trace file
+
+    //--------------------------------------
+    //trace signals
+    //--------------------------------------
+
+    sc_close_vcd_trace_file(wf);                             //close trace file
+    return(0);
+}

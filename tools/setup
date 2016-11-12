@@ -1,0 +1,173 @@
+#!/bin/bash 
+
+echo " What would you like to do? Select a project or a library component (select 0 for project, 1 for library component):"
+read do_sel
+#echo $do_sel
+
+if [ $do_sel -eq 0 ]; then
+	PROJ_ROOT=$WS_ROOT/projects
+	DIRS=`ls -l --time-style="long-iso" $PROJ_ROOT | egrep '^d' | awk '{print $8}'`
+	echo " List of existing projects:"
+elif [ $do_sel -eq 1 ]; then
+	PROJ_ROOT=$WS_ROOT/lib
+	DIRS=`ls -l --time-style="long-iso" $PROJ_ROOT | egrep '^d' | awk '{print $8}'`
+	echo " List of existing library components:"
+fi
+
+i=0
+for DIR in $DIRS; do
+    i=$(($i+1))
+    echo "    $i. ${DIR}"
+done
+echo " Select a project/component by entering corresponding number (0 to create a new project/component): "
+
+read projsel
+#echo $projsel
+
+i=0
+if [ $projsel -ne 0 ]; then
+    for DIR in $DIRS; do
+        i=$(($i+1))
+        if [ $i -eq $projsel ]; then
+			echo "Selected project is ${DIR}"
+			projname=${DIR}
+			break
+        fi
+    done
+elif [ $projsel -eq 0 ]; then
+    echo "Selected option is 0. Creating a new project"
+    echo "Enter the name of new project: "
+    read projname
+
+    echo $projname
+
+	tar=(sc hdl fpga)
+
+	for ((i=0;i<${#tar[@]};i++))
+		do
+			mkdir -p $PROJ_ROOT/$projname/
+			mkdir -p $PROJ_ROOT/$projname/${tar[$i]}
+			mkdir -p $PROJ_ROOT/$projname/${tar[$i]}/rtl
+			mkdir -p $PROJ_ROOT/$projname/${tar[$i]}/tb
+			mkdir -p $PROJ_ROOT/$projname/${tar[$i]}/sim
+			mkdir -p $PROJ_ROOT/$projname/${tar[$i]}/include
+			mkdir -p $PROJ_ROOT/$projname/${tar[$i]}/tests
+		done
+
+	mkdir -p $PROJ_ROOT/$projname/fpga/image
+	
+    cp $WS_ROOT/templates/Makefile.include.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/include/Makefile
+    
+    cp $WS_ROOT/templates/Makefile.rtl.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/rtl/Makefile
+    
+    cp $WS_ROOT/templates/Makefile.tb.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/tb/Makefile
+    
+    cp $WS_ROOT/templates/Makefile.sim.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/sim/Makefile
+    
+    cp $WS_ROOT/templates/Makefile.tests.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/tests/Makefile
+    
+    cp $WS_ROOT/templates/sim.cpp.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+	cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/sim/sim.cpp
+    
+    cp $WS_ROOT/templates/unit.cpp.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/rtl/$projname.cpp
+    
+    cp $WS_ROOT/templates/unit.cpp.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/rtl/$projname.cpp
+    
+    cp $WS_ROOT/templates/unit_tb.cpp.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/tb/$projname'_tb'.cpp
+    
+    cp $WS_ROOT/templates/unit.rtl.files.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/rtl/$projname.rtl.files
+    
+    cp $WS_ROOT/templates/unit.tb.files.template /tmp/file
+    perl -pi -e s/unit/$projname/g /tmp/file
+    cp /tmp/file $PROJ_ROOT/$projname/${tar[0]}/tb/$projname.tb.files
+    
+fi
+
+PROJ_HOME=$PROJ_ROOT/$projname
+PROJ_SC_HOME=$PROJ_ROOT/$projname/sc
+PROJ_FPGA_HOME=$PROJ_ROOT/$projname/fpga
+PROJ_HDL_HOME=$PROJ_ROOT/$projname/hdl
+
+PROJ_SC_INC=$PROJ_SC_HOME/include
+PROJ_SC_SIM=$PROJ_SC_HOME/sim
+PROJ_SC_RTL=$PROJ_SC_HOME/rtl
+PROJ_SC_TB=$PROJ_SC_HOME/tb
+PROJ_SC_TESTS=$PROJ_SC_HOME/tests
+
+PROJ_HDL_INC=$PROJ_HDL_HOME/include
+PROJ_HDL_SIM=$PROJ_HDL_HOME/sim
+PROJ_HDL_RTL=$PROJ_HDL_HOME/rtl
+PROJ_HDL_TB=$PROJ_HDL_HOME/tb
+PROJ_HDL_TESTS=$PROJ_HDL_HOME/tests
+
+PROJ_HDL_INC=$PROJ_FPGA_HOME/include
+PROJ_FPGA_SIM=$PROJ_FPGA_HOME/sim
+PROJ_FPGA_RTL=$PROJ_FPGA_HOME/rtl
+PROJ_FPGA_TB=$PROJ_FPGA_HOME/tb
+PROJ_FPGA_TESTS=$PROJ_FPGA_HOME/tests
+PROJ_FPGA_IMAGE=$PROJ_FPGA_HOME/image
+
+LIB_ROOT=$WS_ROOT/lib
+
+export PROJ_ROOT
+export PROJ_HOME
+export PROJ_SC_HOME
+export PROJ_FPGA_HOME
+export PROJ_HDL_HOME
+
+export PROJ_SC_INC
+export PROJ_SC_SIM
+export PROJ_SC_RTL
+export PROJ_SC_TB
+export PROJ_SC_TESTS
+
+export PROJ_HDL_INC
+export PROJ_HDL_SIM
+export PROJ_HDL_RTL
+export PROJ_HDL_TB
+export PROJ_HDL_TESTS
+
+export PROJ_FPGA_INC
+export PROJ_FPGA_SIM
+export PROJ_FPGA_RTL
+export PROJ_FPGA_TB
+export PROJ_FPGA_TESTS
+export PROJ_FPGA_IMAGE
+
+alias scsim="cd $PROJ_SC_SIM"
+alias scrtl="cd $PROJ_SC_RTL"
+alias sctb="cd $PROJ_SC_TB"
+alias sctb="cd $PROJ_SC_TESTS"
+alias scinc="cd $PROJ_SC_INC"
+
+alias fpgasim="cd $PROJ_FPGA_SIM"
+alias fpgartl="cd $PROJ_FPGA_RTL"
+alias fpgatb="cd $PROJ_FPGA_TB"
+alias fpgatb="cd $PROJ_FPGA_TESTS"
+alias fpgainc="cd $PROJ_FPGA_INC"
+alias fpgaimage="cd $PROJ_FPGA_IMAGE"
+
+alias hdlsim="cd $PROJ_HDL_SIM"
+alias hdlrtl="cd $PROJ_HDL_RTL"
+alias hdltb="cd $PROJ_HDL_TB"
+alias hdltb="cd $PROJ_HDL_TESTS"
+alias hdlinc="cd $PROJ_HDL_INC"

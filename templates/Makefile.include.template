@@ -1,0 +1,1 @@
+SC_INC_FILES = $(PROJ_SC_HOME)/include/unit_inc.cpp

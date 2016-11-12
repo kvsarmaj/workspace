@@ -1,0 +1,9 @@
+SC_INC = -I$(PROJ_SC_HOME)/include -I$(PROJ_SC_HOME)/tb -I$(PROJ_SC_HOME)/rtl
+SC_SIM_FILES = sim.cpp
+SC_BUILD_LOG = unit.build.$(TEST_NAME).log
+SC_SIM_LOG = unit.sim.$(TEST_NAME).log
+MOD=unit
+
+include $(PROJ_SC_HOME)/rtl/Makefile
+include $(PROJ_SC_HOME)/tb/Makefile
+include $(WS_ROOT)/include/Makefile
