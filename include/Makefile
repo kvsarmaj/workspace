@@ -15,7 +15,7 @@ all: clean comp_run
 comp_run: gen_sim comp run vcd  
 
 gen_sim: 
-	perl $(WS_TOOL_ROOT)/gen_sim_file.pl -mod $(MOD) -dump_hier -create_sim_file 
+	perl $(WS_TOOL_ROOT)/gen_sim_file.pl -mod $(MOD) -dump_hier -create_sim_file -inc_list "$(SC_INC)"
 
 comp: $(SC_EXE) 
 

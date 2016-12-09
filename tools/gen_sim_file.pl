@@ -9,7 +9,9 @@ use strict;
 use Data::Dumper;
 use Storable;
 
-my $proj_root = "${PROJ_SC_HOME}"; #add your working directory path
+my $proj_root = "${PROJ_SC_HOME}";
+my $ws_root = "${WS_ROOT}";
+my $short_help;
 my $usage;
 my $dump_log;
 my $ifile;
@@ -24,6 +26,7 @@ my $create_sim_file;
 my $wr_sim_file = 0;
 my $sim_file;
 my $sel_depth;
+my $inc_list;
 
 my @files;
 my @units;
@@ -40,9 +43,10 @@ my @full_sig_list;
 
 my $bcnt=0;
 my $scnt=0;
+my $search_inc=0;
 
 GetOptions ("-help"            => \$usage,
-            "-h"               => \$usage,
+            "-h"               => \$short_help,
             "-log"             => \$dump_log,
             "-mod=s"           => \$mod,
             "-i=s"             => \$ifile,
@@ -52,14 +56,16 @@ GetOptions ("-help"            => \$usage,
             "-dump_hier"       => \$dump_hier,
             "-hier_file=s"     => \$hier_file,
             "-create_sim_file" => \$create_sim_file,
-            "-sim_file=s"      => \$sim_file
+            "-sim_file=s"      => \$sim_file,
+            "-inc_list=s"      => \$inc_list
     );
 
-if(defined $usage) { usage(); };
+if(defined $short_help) { short_help(); exit(1); };
+if(defined $usage) { short_help(); usage(); exit(1); };
 if(defined $dump_log) { $dump_log = 1; };
-if(!(defined $ifile)) { 
-    if(!(defined $mod)) { 
-        die "Please specify file list\n"; 
+if(!(defined $ifile)) {
+    if(!(defined $mod)) {
+        die "Please specify file list\n";
     } else {
         $ifile = $proj_root."/rtl/".$mod.".rtl.files";
     };
@@ -94,7 +100,11 @@ if(defined $create_sim_file) {
 }
 
 if(!(defined $sel_depth)) {
-	$sel_depth = 0;
+    $sel_depth = 0;
+}
+
+if(defined $inc_list) {
+    $search_inc = 1;
 }
 
 #-------------------------------------------------------------------------------
@@ -121,49 +131,63 @@ if($wr_sim_file) {
 #----------
 #Help
 
+sub short_help() {
+    print " gen_sim_file.pl -help|-h|-mod=|-i= [-log] [-top] [-o=] [-sel_depth=] \n";
+    print "                 [-dump_hier] [-hier_file=] [-create_sim_file] [-sim_file=] [-inc_list=] \n";
+}
+
 sub usage() {
-    print "Please stay online while we connect you to our customer care executive!\n";
-    exit(1);
+    print "\n";
+    print "   -h                    short usage\n";
+    print "   -help                 detailed help\n";
+    print "   -log                  dumps log file from the script\n";
+    print "   -mod=                 specify module name for building file list\n";
+    print "   -i=                   specify you own file list - must be complete list to generate sim file correctly\n";
+    print "   -top                  specify top of the hierarchy instantiated in sim.cpp\n";
+    print "                           script is generally capable of figuring this out\n";
+    print "                           where it fails to do so, specify the top module name\n";
+    print "   -o                    specify output file name to dump the signale list\n";
+    print "                           when not provided, defaults to sig_list\n";
+    print "   -sel_depth            specify hierarchy depth as +ve integer for signal list to be traced\n";
+    print "                           when not specified, defaults to 0 i.e., full depth\n";
+    print "   -dump_hier            specify if hierarchy file has to be dumped\n";
+    print "                           filename specified by -hier_file option\n";
+    print "   -hier_file            specify file where hierarchy has to be dumped\n";
+    print "                           when not specified, <mod>_hier will be used\n";
+    print "                           where <mod> is not specified, top_hier will be used\n";
+    print "   -create_sim_file      creates simulation top which initiates simulation\n";
+    print "   -sim_file=            specify file name for simulation top which initiates simulation\n";
+    print "                           when not specified, defaults to sim.cpp\n";
+    print "   -inc_list=            specify included directories \n";
+    print "                           preferable when component includes other components/projects\n";
+    print "\n";
+
 }
 
 #----------
 #build file list
 
 sub build_file_list {
-    gen_list("rtl");
-    gen_list("tb");
-    #print join "\n" => @files; print "\n";
-    
-}
+    my $fname;
 
-sub gen_list {
-    
-    my $type = @_[0];
-    my $file = $proj_root."/".$type."/".$top.".".$type.".files";
-    #print $file."\n";
-    
-    my @lines = proc_file($file);
-    #print join "\n" => @lines; print "\n";
-    foreach my $line (@lines) {
-        if($line =~ m/#include\s*/) {
-            $line =~ s/#include\s*//;
-            $line =~ s/<//;
-            $line =~ s/\"//;
-            $line =~ s/>$//;
-            $line =~ s/"$//;
-            chomp($line);
-            #print $line."\n";
-            $line = $proj_root."/".$type."/".$line;
-            push(@files, $line);
-        }
-    }
-    my $line;
-    if($type eq "rtl") {
-        $line = $proj_root."/".$type."/".$top.".cpp";
-    } else {
-        $line = $proj_root."/".$type."/".$top."_tb.cpp";
-    }
-    push(@files, $line);
+	$inc_list =~ s/-I//g;	
+	print $inc_list."\n";
+
+	my @dirs = split(/\s/,$inc_list);
+	foreach my $t (@dirs) {
+		#print $t."\n";
+		opendir my $dir, $t or die "Cannot open directory : $!";
+		my @flist = readdir $dir;
+		#print join "\n\t" => @flist; print "\n";
+		closedir $dir;
+		foreach my $f (@flist) {
+			if($f =~ m/.cpp$/) {
+				my $fn = $t."/".$f;
+				print $fn;
+				push(@files, $fn);
+			}
+		}
+	}
 }
 
 #----------
@@ -191,7 +215,7 @@ sub build_hier_tree {
         $mod_list{$m} = $file;
         push(@mlist, $m);
     }
-    
+
     foreach my $m (keys %mod_list) {
         print "$m :: $mod_list{$m}\n";
     }
@@ -242,7 +266,7 @@ sub build_hier_tree {
         }
     }
     print Dumper(\%h);
-    
+
     my @hier_lvl;
     my @tmp;
     my $c = 0;
@@ -258,7 +282,7 @@ sub build_hier_tree {
         #print "$inst ... $tmp[$c]\n";
         $c++;
     }
-    
+
     $c = 0;
     foreach my $inst (keys %h) {
         if($tmp[$c] == 1) {
@@ -275,13 +299,13 @@ sub build_hier_tree {
     }
     #print Dumper(\%hc);
 
-    foreach my $k (keys $p){
+    foreach my $k (keys %hc){
         #print "$k .. $p->{$k} \n";
         $p->{$k} = $h{$k};
     }
     print Dumper(\%hc);
     print "*******************\n";
-    
+
     $p = \%hier;
     my $cnt = 0;
     foreach my $k (keys %{$hc{$hier_top}} ){
@@ -312,7 +336,7 @@ sub build_hier_tree {
     print "======================================================\n";
     print Dumper(\%full_hier);
     print "======================================================\n";
-    
+
     $fh = \%full_hier;
     if($dump_hier_file) {
         open FWP, ">", $hier_file or die "Could not open $hier_file for reading : $!\n";
@@ -329,7 +353,7 @@ sub build_hier {
     my $link = $fh;
 
     foreach my $k (@harr) {
-        if($p->{$k}) { 
+        if($p->{$k}) {
             $fh = \%{$fh->{$k}};
             my @arr = @{$p->{$k}};
             print join " => " => @arr; print "\n";
@@ -407,12 +431,12 @@ sub build_sig_list () {
 }
 
 sub make_full_sig_list () {
-    
+
     my $can_path = shift;
     my $link = $fh;
     my $cur_can_path = $can_path;
 
-    foreach my $k (keys $fh) {
+    foreach my $k (keys %{$fh}) {
         my $inst;
         if($fh->{$k} == 0) {
             $inst = get_mod_name($k);
@@ -423,7 +447,7 @@ sub make_full_sig_list () {
             }
             $fh = $link;
         } else {
-            if($k ne $hier_top) { 
+            if($k ne $hier_top) {
                 $inst = get_mod_name($k);
                 $can_path = $can_path.".".$k;
             } else {
@@ -435,6 +459,7 @@ sub make_full_sig_list () {
                 push(@full_sig_list, $sig);
             }
             $fh = \%{$fh->{$k}};
+			print "....pass ... $can_path\n";
             my $stat = make_full_sig_list($can_path);
             $fh = $link;
             $can_path = $cur_can_path;
@@ -449,7 +474,6 @@ sub make_full_sig_list () {
 sub get_mod_name () {
 
     my $inst = shift;
-    print "$inst \n";
 
     foreach my $k (keys %h) {
         foreach my $l (keys %{$h{$k}}) {
@@ -460,7 +484,6 @@ sub get_mod_name () {
     }
 
 }
-
 
 #---------
 #write sim file
@@ -475,9 +498,9 @@ sub write_sim_file () {
     $content .= sim_inst();
     $content .= sim_trace();
     $content .= sim_footer();
-    
+
     #print $content;
-    
+
     print "-----------------------------------------------------\n";
     print "Writing sim file sim.cpp ... \n";
     open FWP, ">", $sim_file or die "Could not open $sim_file for reading : $!\n";
@@ -619,9 +642,9 @@ sub sim_footer() {
 #common functions
 
 sub proc_file () {
-    
+
     my $file = shift;
-    my @lines; 
+    my @lines;
     open FRP, "<", $file or die "Could not open $file for reading : $!\n";
     my $cmt_blk = 0;
     my $cmt_line = 0;
