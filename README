@@ -27,7 +27,7 @@ Before you get started
    8. When including other projects or library components while developing new projects or library components, add the rtl paths to SC_INC variable in Makefile in sim area.
    	  For example, if pulse_sync module include sync_2d module, modify SC_INC to include rtl directory of sync_2d as follows:
 	  Setup will generate Makefile with SC_INC as follows
-	  		SC_INC = -I$(PROJ_SC_HOME)/include -I$(PROJ_SC_HOME)/tb -I$(PROJ_SC_HOME)/rtl -I$(WS_ROOT)/lib/sync_2d/sc/rtl
+	  		SC_INC = -I$(PROJ_SC_HOME)/include -I$(PROJ_SC_HOME)/tb -I$(PROJ_SC_HOME)/rtl
 	  Modify it to include sync_2d rtl directory
 	  		SC_INC = -I$(PROJ_SC_HOME)/include -I$(PROJ_SC_HOME)/tb -I$(PROJ_SC_HOME)/rtl -I$(WS_ROOT)/lib/sync_2d/sc/rtl
    8. All makefiles are built in using templates by setup. All you need to do is write code to implement your logic and run simulations
