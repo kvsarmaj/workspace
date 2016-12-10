@@ -14,6 +14,8 @@ my $ws_root = "${WS_ROOT}";
 my $short_help;
 my $usage;
 my $dump_log;
+my $log_file;
+my $log_fname;
 my $ifile;
 my $mod;
 my $top;
@@ -48,6 +50,7 @@ my $search_inc=0;
 GetOptions ("-help"            => \$usage,
             "-h"               => \$short_help,
             "-log"             => \$dump_log,
+			"-log_file"        => \$log_fname,
             "-mod=s"           => \$mod,
             "-i=s"             => \$ifile,
             "-top"             => \$top,
@@ -63,6 +66,7 @@ GetOptions ("-help"            => \$usage,
 if(defined $short_help) { short_help(); exit(1); };
 if(defined $usage) { short_help(); usage(); exit(1); };
 if(defined $dump_log) { $dump_log = 1; };
+if(!(defined $log_fname))  { $log_fname = "gen_sim_file.log"; }
 if(!(defined $ifile)) {
     if(!(defined $mod)) {
         die "Please specify file list\n";
@@ -82,7 +86,7 @@ if(!(defined $top)) {
     } else {
         $top = $mod;
     }
-    #print $top."\n";
+    $log_file .= $top."\n";
 }
 
 if(defined $dump_hier){
@@ -117,6 +121,13 @@ build_sig_list();
 if($wr_sim_file) {
     write_sim_file();
 }
+if($dump_log) {
+	print "Writing log file...\n";
+    open FWP, ">", $log_fname or die "Could not open $log_fname for reading : $!\n";
+    print FWP $log_file;
+	print "...done\n";
+    close(FWP);	
+}
 
 #-------------------------------------------------------------------------------
 #Build signal list
@@ -141,6 +152,8 @@ sub usage() {
     print "   -h                    short usage\n";
     print "   -help                 detailed help\n";
     print "   -log                  dumps log file from the script\n";
+	print "   -log_file             specify name of the log file\n";
+	print "                         defaults to gen_sim_file.log\n";
     print "   -mod=                 specify module name for building file list\n";
     print "   -i=                   specify you own file list - must be complete list to generate sim file correctly\n";
     print "   -top                  specify top of the hierarchy instantiated in sim.cpp\n";
@@ -170,20 +183,20 @@ sub usage() {
 sub build_file_list {
     my $fname;
 
-	$inc_list =~ s/-I//g;	
-	print $inc_list."\n";
+	$inc_list =~ s/-I//g;
+	$log_file .= "Looking in included directories for hierarchy parsing \n";
 
 	my @dirs = split(/\s/,$inc_list);
 	foreach my $t (@dirs) {
-		#print $t."\n";
+		$log_file .= "\t".$t."\n";
 		opendir my $dir, $t or die "Cannot open directory : $!";
 		my @flist = readdir $dir;
-		#print join "\n\t" => @flist; print "\n";
 		closedir $dir;
+		$log_file .= "\t\tFiles found for hierarchy parsing:\n";
 		foreach my $f (@flist) {
 			if($f =~ m/.cpp$/) {
 				my $fn = $t."/".$f;
-				print $fn;
+				$log_file .= "\t\t".$fn."\n";
 				push(@files, $fn);
 			}
 		}
@@ -199,25 +212,23 @@ sub build_hier_tree {
     my @mlist;
 
     foreach my $file (@list) {
-        print $file."\n";
+        #print $file."\n";
         my $content;
         my @lines = proc_file($file);
         foreach my $line (@lines) {
             $content = $content.$line;
         }
         $content =~ s/\n/ /g;
-        #print $content;
         my $m = $content;
         $m =~ s/.*SC_MODULE\s*\(//;
-        #print $m;
         $m =~ s/\).*$//;
-        print "Module name in $file is $m \n";
+        $log_file .= "Module name in $file is $m \n";
         $mod_list{$m} = $file;
         push(@mlist, $m);
     }
 
     foreach my $m (keys %mod_list) {
-        print "$m :: $mod_list{$m}\n";
+        $log_file .= "$m :: $mod_list{$m}\n";
     }
 
     foreach my $file (@list) {
@@ -229,17 +240,14 @@ sub build_hier_tree {
         my $cnt;
         $cnt = 0;
         foreach my $line (@lines) {
-            #print $line;
             foreach my $m (@mlist) {
                 if(($line =~ m/^\s*$m\s*<.*>\s*.*;\s*$/)
                    || ($line =~ m/^\s*$m\s+.*;\s*$/)){
-                    #print $m."\n";
                     my $k = $line;
                     $k =~ s/^\s+//;
                     $k =~ s/\s+$//;
                     $k =~ s/;//;
                     $k =~ s/<.*>//;
-                    #print $k."\n";
                     $k =~ s/^$m\s+//;
                     $k =~ s/(.*)$//;
                     my $inst = $1;
@@ -247,8 +255,8 @@ sub build_hier_tree {
                     my $mname = $content;
                     $mname =~ s/.*SC_MODULE\s*\(//;
                     $mname =~ s/\).*$//;
-                    #print "Module name in $file is $mname \n";
-                    #print "\tinstance is $inst \n";
+                    $log_file .= "Module name in $file is $mname \n";
+                    $log_file .= "\tinstance is $inst \n";
                     chomp($line);
                     $k = $line;
                     $k =~ s/^\s+//;
@@ -265,7 +273,6 @@ sub build_hier_tree {
             }
         }
     }
-    print Dumper(\%h);
 
     my @hier_lvl;
     my @tmp;
@@ -290,7 +297,8 @@ sub build_hier_tree {
         }
         $c++;
     }
-    print "hierarhical top is $hier_top\n";
+    $log_file .= "hierarhical top is $hier_top\n";
+	print "Hierarchical top is $hier_top\n";
 
     $p = \%hc;
 
@@ -300,11 +308,12 @@ sub build_hier_tree {
     #print Dumper(\%hc);
 
     foreach my $k (keys %hc){
-        #print "$k .. $p->{$k} \n";
         $p->{$k} = $h{$k};
     }
-    print Dumper(\%hc);
-    print "*******************\n";
+	$log_file .= "*******************\n";
+	$log_file .= "Identified module and submodule hiearchical components\n";
+	$log_file .=  Dumper(\%h);
+	$log_file .= "*******************\n";
 
     $p = \%hier;
     my $cnt = 0;
@@ -314,60 +323,68 @@ sub build_hier_tree {
     }
 
     foreach my $k (keys %hc) {
-        #print "$k \n";
         foreach my $l (keys %{$hc{$k}}) {
-            #print "\t$l .. $hc{$k}{$l} \n";
             my $ecnt = 0;
             foreach my $m (keys %{$h{$hc{$k}{$l}}}) {
-                #print $m;
                 $p->{$l}[$ecnt] = "$m";
                 $ecnt++;
             }
         }
     }
-    print "======================================================\n";
-    print Dumper(\%hier);
-    print "======================================================\n";
+    $log_file .= "======================================================\n";
+	$log_file .= "Finalized hierarchical instances\n";
+	$log_file .= Dumper(\%hier);
+    $log_file .= "======================================================\n";
 
+	$log_file .= "Building hierarchy....\n";
     print "Building hierarchy....\n";
     $p = \%hier;
     $fh = \%{$fh->{$hier_top}};
     build_hier(@{$hier{$hier_top}});
+    $log_file .= "======================================================\n";
+	$log_file .= "Hierarchy parsing done\n";
+    $log_file .= Dumper(\%full_hier);
+    $log_file .= "======================================================\n";
     print "======================================================\n";
+	print "Hierarchy parsing done\n";
     print Dumper(\%full_hier);
     print "======================================================\n";
 
     $fh = \%full_hier;
     if($dump_hier_file) {
+		print "Dumping hierarchy file ...\n";
         open FWP, ">", $hier_file or die "Could not open $hier_file for reading : $!\n";
         print FWP Dumper(\%full_hier);
         close(FWP);
+		print "...done\n";
     }
-
 }
 
 sub build_hier {
 
     my @harr = @_;
-    #print join " => " => @harr; print "\n";
     my $link = $fh;
 
     foreach my $k (@harr) {
         if($p->{$k}) {
             $fh = \%{$fh->{$k}};
             my @arr = @{$p->{$k}};
-            print join " => " => @arr; print "\n";
+            #print join " => " => @arr; print "\n";
             build_hier(@arr);
             $fh = $link;
         } else {
             $fh->{$k} = 0;
-            #print "end of this line\n";
         }
         $bcnt++;
-        if($bcnt == 100000) { print Dumper(\%full_hier); exit(1); } # just a check to ensure script doesnt hang
+		if($bcnt == 100000) { 
+			$log_file .= Dumper(\%full_hier);
+			$log_file .= "\n limit hit\n";
+			print Dumper(\%full_hier); 
+			print "\nlimit hit\n"; 
+			exit(1); 
+		} # just a check to ensure script doesnt hang
     }
     return;
-
 }
 
 #----------
@@ -375,16 +392,19 @@ sub build_hier {
 
 sub build_sig_list () {
 
-    print "-----------------------------------------------------\n";
-    print Dumper(\%h);
-    print "-----------------------------------------------------\n";
-
-    print "-----------------------------------------------------\n";
-    print Dumper(\%mod_list);
-    print "-----------------------------------------------------\n";
+    $log_file .= "Obtaing signal list for each hierarchical instance\n";
+	
+    $log_file .= "Hierarhical instances and associated modules are ... \n";
+	$log_file .= "-----------------------------------------------------\n";
+    $log_file .= Dumper(\%h);
+    $log_file .=  "-----------------------------------------------------\n";
+    $log_file .= "Looking for signals in following files for each module instance\n";
+    $log_file .= "-----------------------------------------------------\n";
+    $log_file .= Dumper(\%mod_list);
+    $log_file .= "-----------------------------------------------------\n";
 
     foreach my $m (keys %mod_list) {
-        #print $mod_list{$m}."\n";
+        $log_file .= "\nLooking in ".$mod_list{$m}."\n";
         my @lines = proc_file($mod_list{$m});
         my $cnt = 0;
         foreach my $line (@lines) {
@@ -410,21 +430,34 @@ sub build_sig_list () {
             }
         }
     }
-    print Dumper(\%sig_list);
+	$log_file .= "-----------------------------------------------------\n";
+	$log_file .= "Identified signals in each module\n";
+    $log_file .= Dumper(\%sig_list);
+	$log_file .= "-----------------------------------------------------\n";
 
     $fh = \%full_hier;
     $bcnt = 0;
     my $tb_path = $mod."_tb";
-    make_full_sig_list($tb_path);
     print "-----------------------------------------------------\n";
-    print join "\n" => @full_sig_list; print "\n";
+	print "Obtaining full signal list...\n";
+    make_full_sig_list($tb_path);
+    $log_file .= "-----------------------------------------------------\n";
+	$log_file .= "Obtained full signal list\n";
+	foreach my $s (@full_sig_list) {
+		$log_file .= "\t".$s."\n";
+	}
+    $log_file .= "-----------------------------------------------------\n";
+	print "...done\n";
     print "-----------------------------------------------------\n";
 
+    $log_file .= "Writing signal list to the file \"$ofile\" .... \n";
     print "Writing signal list to the file \"$ofile\" .... \n";
     open FWP, ">", $ofile or die "Could not open $ofile for reading : $!\n";
     print FWP join "\n" => @full_sig_list; print FWP "\n";
     close(FWP);
-    print "Signal list dumped to \"$ofile\" \n";
+    $log_file .= "...done\n";
+    $log_file .= "-----------------------------------------------------\n";
+    print "...done\n";
     print "-----------------------------------------------------\n";
 
 
@@ -459,14 +492,19 @@ sub make_full_sig_list () {
                 push(@full_sig_list, $sig);
             }
             $fh = \%{$fh->{$k}};
-			print "....pass ... $can_path\n";
             my $stat = make_full_sig_list($can_path);
             $fh = $link;
             $can_path = $cur_can_path;
         }
     }
     $bcnt++;
-    if($bcnt == 100000) { print Dumper(\%full_hier); print "\nlimit hit\n"; exit(1); } # just a check to ensure script doesnt hang
+    if($bcnt == 100000) { 
+		$log_file .= Dumper(\%full_hier);
+		$log_file .= "\n limit hit\n";
+		print Dumper(\%full_hier); 
+		print "\nlimit hit\n"; 
+		exit(1); 
+	} # just a check to ensure script doesnt hang
     return 0;
 
 }
@@ -501,13 +539,17 @@ sub write_sim_file () {
 
     #print $content;
 
+    $log_file .= "-----------------------------------------------------\n";
+    $log_file .= "Writing sim file sim.cpp ... \n";
     print "-----------------------------------------------------\n";
     print "Writing sim file sim.cpp ... \n";
     open FWP, ">", $sim_file or die "Could not open $sim_file for reading : $!\n";
     print FWP $content;
     close(FWP);
-    print "Done \n";
-    print "-----------------------------------------------------\n";
+    print  "...done \n";
+    print  "-----------------------------------------------------\n";
+    $log_file .= "...done \n";
+    $log_file .= "-----------------------------------------------------\n";
 
 }
 
