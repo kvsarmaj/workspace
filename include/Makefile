@@ -29,7 +29,7 @@ endif
 
 comp: $(SC_EXE) 
 
-$(SC_EXE): 
+$(SC_EXE): $(SC_SRC_FILES)
 	@echo "-----------------------------------------------------" | tee -a build.log
 	@echo " Building SystemC simulation for $(MOD)              " | tee -a build.log
 	@echo "-----------------------------------------------------" | tee -a build.log
