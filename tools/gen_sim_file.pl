@@ -540,9 +540,9 @@ sub write_sim_file () {
     #print $content;
 
     $log_file .= "-----------------------------------------------------\n";
-    $log_file .= "Writing sim file sim.cpp ... \n";
+    $log_file .= "Writing sim file $sim_file ... \n";
     print "-----------------------------------------------------\n";
-    print "Writing sim file sim.cpp ... \n";
+    print "Writing sim file $sim_file ... \n";
     open FWP, ">", $sim_file or die "Could not open $sim_file for reading : $!\n";
     print FWP $content;
     close(FWP);
